@@ -70,6 +70,25 @@ enum PhysicalKeys
   ENT  = 16
 };
 
+#ifdef BOOT
+  static void _I2C_lock(){}
+  static void _I2C_unlock(){}
+#else
+  #include "rtos.h"
+  extern mutex_handle_t I2CMutex;
+
+  static void _I2C_lock()
+  {
+    mutex_lock(&I2CMutex);
+  }
+
+  static void _I2C_unlock()
+  {
+    mutex_unlock(&I2CMutex);
+  }
+#endif
+
+extern volatile bool errorOccurs;
 extern bool suspendI2CTasks;
 
 static bool fct_state[4] = {false, false, false, false};
@@ -106,6 +125,22 @@ void pollKeys()
 
   if (syncelem.ui8ReadInProgress != 0) {
     keyState = syncelem.oldResult;
+  }
+
+  if(errorOccurs)
+  {
+    TRACE_ERROR("I2C ERORR\n\r");
+    errorOccurs =false;
+    int bsp_io_init();
+    _I2C_lock();
+    (RCC->APB1LENR) |= (RCC_APB1LENR_I2C1EN);
+    RCC->APB1LRSTR |= (RCC_APB1LRSTR_I2C1RST);
+    delay_us(BSP_READ_AFTER_WRITE_DELAY);
+    RCC->APB1LRSTR &= ~(RCC_APB1LRSTR_I2C1RST);
+    bsp_io_init();
+    bsp_output_set(0, 0);
+    _I2C_unlock();
+    return;
   }
 
   // ui8ReadInProgress was 0, increment it

@@ -76,7 +76,7 @@ bool bsp_get_shouldReadKeys()
   return tmp;
 }
 
-static volatile bool errorOccurs = false;
+volatile bool errorOccurs = false;
 static void bsp_input_read()
 {
   uint16_t value;
